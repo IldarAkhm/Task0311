@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using System.IO;
 using System.Diagnostics;
 using System.Globalization;
+using static System.Net.WebRequestMethods;
+using File = System.IO.File;
 
 namespace Task1
 {
@@ -14,116 +16,147 @@ namespace Task1
 
         static void Main(string[] args)
         {
-            // Создание мероприятий
-            Event hakaton = new Event("Хакатон", 5);
-            Event funnystarts = new Event("Веселые старты", 5);
-            Event misterIvmiit = new Event("Мистер Ивмиит", 1);
-            Event Dota = new Event("Дота", 5);
-            Event CSGO = new Event("КСГО", 5);
-            Event MIssisIvmiit = new Event("Миссис Ивмиит", 5);
-            Event Final = new Event("Финал", 30);
+            string filepath_students = @"C:\Users\ahmet\Desktop\Студенты и группа.txt";
+            string filepath_events = @"C:\Users\ahmet\Desktop\Мер с участ.txt";
+            Program.FileCreatorAndOverwriting(filepath_events, @"C:\Users\ahmet\Desktop\DZ\Task0312\Task0312\Task1\Files\Events_and_countstud.txt");
+            Program.FileCreatorAndOverwriting(filepath_students, @"C:\Users\ahmet\Desktop\DZ\Task0312\Task0312\Task1\Files\Students.txt");
 
-            List<Event> events = new List<Event>() { hakaton, funnystarts, misterIvmiit,
-                Dota, CSGO, MIssisIvmiit, Final 
-            };
-
-            // Работа с Файлом студентов
-            string filepath1 = @"C:\Users\ahmet\Desktop\Студенты и группа.txt";
-            List<string[]> students = new List<string[]>();
-            List<List<string>> students2 = new List<List<string>>();
-            
-            // Работа с файлом мероприятие 1 - запись мероприятий в файл
-            string filepath2 = @"C:\Users\ahmet\Desktop\Мероприятия и участники.txt";
-            using (StreamWriter streamWriter = new StreamWriter(filepath2))
+            List<Event> events = new List<Event>(); // Список с обьектами Event(события)
+            using (StreamReader rd = new StreamReader(filepath_events)) // Считываем с файла события и нужное кол-во людей и добавляем в список событий
             {
-                try
+                string fille = rd.ReadLine();
+                while (fille != null)
+                {
+                    string[] b = fille.Split();
+                    int cnt;
+                    if (int.TryParse(b[1], out cnt))
+                    {
+                        events.Add(new Event(b[0], cnt));
+                    }
+                    else { events.Add(new Event(b[0] + b[1], Convert.ToInt32(b[2]))); }
+                    fille = rd.ReadLine();
+                }
+            }
+            List<List<string>> studevent = new List<List<string>>(events.Count()); // мероприятие и люди желающие там участвовать
+            
+            foreach (var q in events)
+            {
+                List<string> s = new List<string>();
+                s.Add(q.name);
+                studevent.Add(s);
+            }
+            
+           
+
+            List<Student> students = new List<Student>(); // список со студентами и их мероприятиями
+
+            List<Student> studoutsiders = new List<Student>(); // студенты которые нигде не участвуют
+            using (StreamReader rw = new StreamReader(filepath_students)) // смотрим на желания студентов
+            {
+                string variable = rw.ReadLine();
+                while (variable != null)
+                {
+                    
+                    string[] a = variable.Split();
+                    
+                    List<string> s = new List<string>();
+                    foreach (var q in studevent)
+                    {
+                        for (int i = 3; i < a.Count(); i++)
+                        {
+
+                            if (q.Contains(a[i])) { q.Add(a[0] + a[1]);s.Add(a[i]); a[i] = "";  }
+                            
+                        }
+                    }
+                    students.Add(new Student(s, a[0] + a[1]));
+                    variable = rw.ReadLine();
+                }
+            }
+            
+
+            
+            foreach (var y in students) // находим студентов оутсайдеров 
+            {
+                if (y.events.Count() == 0)
+                {
+                    studoutsiders.Add(y);
+                }
+                else
                 {
                     foreach (var i in events)
                     {
-                        streamWriter.WriteLine(i.name);
+                        if (y.events.Contains(i.name))
+                        {
+                            i.cntagree += 1;
+                            i.students.Add(y.name);
+                        }
                     }
                 }
-                catch { }
-
             }
-            
-            //CheckFile(filepath1, ref students);
-            CheckMass(students, ref students2);
-            foreach (var i in students)
+
+            foreach (var i in studoutsiders) // заполняем оутсайдерами оставшиейся места
             {
                 foreach (var q in events)
                 {
-                    if (i.Contains(q.name))
+                    if (q.cntagree != q.cnt)
                     {
-                        RedactFile(filepath2, events, i[0], i[1], i[2]);
-                        Console.WriteLine(i[0], i[1], i[2], q.name);
+                        i.events.Add(q.name);
+                        q.cntagree += 1;
+                        q.students.Add(i.name);
+                        continue;
                     }
-                    
                 }
             }
-
-
-
-
+            
+            foreach (var q in events)
+            {
+                Console.WriteLine(q.name);
+                foreach (var i in q.students)
+                {
+                    Console.Write(i + " ");
+                }
+                Console.WriteLine();
+            }
+            string filepath_participants = @"C:\Users\ahmet\Desktop\мероприятия и участники.txt";
+            Program.FileCreatorAndOverwriting(filepath_participants);
+            using (StreamWriter srt = new StreamWriter(filepath_participants, true))
+            {
+                foreach (var s in events)
+                {
+                    srt.WriteLine(s.name);
+                    foreach (var q in s.students)
+                    {
+                        srt.Write(" " + q);
+                    }
+                    srt.WriteLine();
+                }
+            }
+            
 
             Console.Read();
         }
-        public static void RedactFile(string b, List<Event> a, string q, string w, string e)
+        
+        public static void FileCreatorAndOverwriting(string filepath, string file2) //Метод для проверки наличия файлов и заполнения
         {
-            using (StreamWriter streamWriter = new StreamWriter(b, true))
+            if (File.Exists(filepath)) { FileCreatorAndOverwriting(filepath); }
+            else
             {
-                streamWriter.Write(q, w, e);
-            }
-
-        }
-
-        public static void CheckFile(string b, ref List<string[]> j)
-        {
-            using (StreamReader streamReader = new StreamReader(b))
-            {
-                string a = "fff";
-                while (a != null)
+                using (FileStream file = new FileStream(filepath, FileMode.Append))
                 {
-                    try
+                    using (StreamReader fps = new StreamReader(file2, Encoding.Default))
                     {
-                        a = streamReader.ReadLine();
-                        Console.WriteLine(a);
-                        j.Add(a.Split());
-                        
+                        using (StreamWriter st = new StreamWriter(file))
+                        {
+                            st.Write(fps.ReadToEnd());
+                        }
                     }
-                    catch { }
-                }
-                
 
-            }
-        }
-        public static void CheckMass(string[] a, ref List<List<string>> b)
-        {
-            
-            foreach (var j in b)
-            {
-                
-                foreach (var i in a) 
-                {
-                    j.Add(i); Console.WriteLine(i);
                 }
             }
-            Console.Write("\n");
-            
         }
-        public static void CheckMass(List<string[]> a, bool b)
-        {
+        public static void FileCreatorAndOverwriting(string filepath) { using (FileStream file = new FileStream(filepath, FileMode.OpenOrCreate)) ; }
 
-            foreach (var i in a)
-            {
-                foreach (var q in i)
-                {
-                    Console.Write(q + " ");
-                }
-                Console.Write("\n");
-            }
-            Console.Write("\n");
 
-        }
     }
 }
